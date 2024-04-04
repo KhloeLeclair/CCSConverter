@@ -59,6 +59,36 @@
 								</button>
 							</div>
 						</div>
+						<div v-else-if="need_names">
+							<div class="mb-4">
+								<h1 class="text-2xl font-semibold">
+									Better Crafting
+								</h1>
+								<h2 class="text-xl font-thin">
+									Quick Question!
+								</h2>
+							</div>
+							<p class="text-justify mb-4">
+								Your content file has big craftable references, which Custom Crafting station
+								handled by name. Content Patcher requires Ids to target big craftables correctly,
+								so please enter the Ids for each big craftable here:
+							</p>
+							<div v-for="(entry, idx) in craftable_names" class="mt-8 mb-4 relative">
+								<input
+									autocomplete="off"
+									:id="`input_${idx}`"
+									v-model="entry[1]"
+									:placeholder="entry[0]"
+									class="peer placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:borer-rose-600"
+								/>
+								<label :for="`input_${idx}`" class="absolute left-0 -top-3.5 text-gray-600 text-sm peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-440 peer-placeholder-shown:top-2 transition-all peer-focus:-top-3.5 peer-focus:text-gray-600 peer-focus:text-sm font-mono">{{ entry[0] }}</label>
+							</div>
+							<div class="mt-10 flex justify-center">
+								<button @click="need_names = false" class="bg-pink-300 hover:bg-pink-600 focus:bg-pink-600 hover:text-white focus:text-white p-2 rounded-full px-4">
+									Done
+								</button>
+							</div>
+						</div>
 						<div v-else-if="converted">
 							<div class="mb-4">
 								<h1 class="text-2xl font-semibold">
@@ -87,7 +117,7 @@
 								and copy this and save it into a JSON file for a Content Patcher content pack.
 							</p>
 							<div class="min-w-96 bg-gray-200 py-2 rounded-xl">
-								<textarea @click="focusMe" spellcheck="false" class="pl-2 h-96 w-full bg-transparent font-mono">{{ JSON.stringify(converted, null, 2) }}</textarea>
+								<textarea @click="focusMe" spellcheck="false" class="pl-2 h-96 w-full bg-transparent font-mono">{{ output }}</textarea>
 							</div>
 						</div>
 					</div>
@@ -144,6 +174,10 @@ function readFile(file: File) {
 
 }
 
+function escapeRegex(input: string): string {
+	return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export default {
 
 	components: {
@@ -156,6 +190,8 @@ export default {
 			converted: null,
 			file: null,
 			generated_names: false,
+			craftable_names: null,
+			need_names: false,
 			tiles: null,
 			error: false,
 			loading: false
@@ -163,9 +199,28 @@ export default {
 			original: CCSSchema | null,
 			converted: CPSchema | null,
 			error: boolean | string,
+			craftable_names: Record<string, [string, string]> | null,
 			generated_names: boolean,
+			need_names: boolean,
 			tiles: string[] | null,
 			loading: boolean
+		}
+	},
+
+	computed: {
+		output() {
+			if ( this.converted == null )
+				return '';
+
+			let result = JSON.stringify(this.converted, null, 2);
+
+			if (this.craftable_names)
+				for(const [key, val] of Object.entries(this.craftable_names)) {
+					let replacement = val[1] && val[1].trim().length > 0 ? val[1] : val[0];
+					result = result.replace(new RegExp(escapeRegex(key), 'g'), replacement);
+				}
+
+			return result;
 		}
 	},
 
@@ -190,6 +245,8 @@ export default {
 			this.error = false;
 			this.loading = true;
 			this.converted = null;
+			this.need_names = false;
+			this.craftable_names = null;
 
 			let raw: string,
 				data: CCSSchema,
@@ -207,14 +264,13 @@ export default {
 				result = output.schema;
 				tiles = output.tiles;
 				this.generated_names = output.generated;
+				this.craftable_names = output.bcnames;
+				this.need_names = Object.keys(output.bcnames).length > 0;
 
 			} catch(err) {
 				console.error(err);
 				this.error = String(err);
 				this.loading = false;
-				this.converted = null;
-				this.tiles = null;
-				this.generated_names = false;
 				return;
 			}
 
@@ -222,8 +278,6 @@ export default {
 			this.converted = result;
 			this.tiles = tiles;
 			this.loading = false;
-
-			console.log('got file', raw);
 		}
 	}
 

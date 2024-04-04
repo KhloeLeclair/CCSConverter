@@ -1,6 +1,8 @@
 
 import { z } from 'zod';
 
+import VanillaCraftables from './vanilla-craftables.json';
+
 export const CCSSchema = z.object({
 	CraftingStations: z.object({
 		BigCraftable: z.string().optional(),
@@ -48,10 +50,12 @@ export type BCStation = z.infer<typeof BCStation>;
 export function convert(input: CCSSchema) {
 
 	const Changes: CPChanges[] = [],
+		CraftableNames: Record<string, [string, string]> = {},
 		Tiles: string[] = [],
 		Stations: Record<string, BCStation> = {};
 
 	let i = 0,
+		bci = 0,
 		did_generate = false;
 
 	console.log('input', input);
@@ -96,18 +100,23 @@ export function convert(input: CCSSchema) {
 			new_station.AreRecipesExclusive = station.ExclusiveRecipes;
 
 		// Does this have a Big Craftable?
-		if (station.BigCraftable )
+		if (station.BigCraftable ) {
+			bci++;
+			const bcname = `_$_BIG_CRAFTABLE_${bci}_$_`;
+			CraftableNames[bcname] = [station.BigCraftable, VanillaCraftables[station.BigCraftable as keyof typeof VanillaCraftables] || ''];
+
 			Changes.push({
 				Action: 'EditData',
 				Target: 'Data/BigCraftables',
 				TargetField: [
-					station.BigCraftable,
+					bcname,
 					'CustomFields'
 				],
 				Entries: {
 					'leclair.bettercrafting_PerformAction': `leclair.bettercrafting_OpenMenu FALSE FALSE ${name}`
 				}
 			});
+		}
 	}
 
 	Changes.push({
@@ -122,6 +131,7 @@ export function convert(input: CCSSchema) {
 			Changes
 		} as CPSchema,
 
+		bcnames: CraftableNames,
 		generated: did_generate,
 		tiles: Tiles
 	};
