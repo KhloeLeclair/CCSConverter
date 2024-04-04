@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+#overlay {
+    display: none;
+    pointer-events: none;
+
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+
+    .when-invalid {
+        display: none;
+    }
+
+    &.invalid {
+        .when-invalid {
+            display: unset;
+        }
+        .when-valid {
+            display: none;
+        }
+    }
+
+    &.active {
+        display: flex;
+		z-index: 9000;
+    }
+}
